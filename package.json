@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "desktop": "electron electron/main.cjs",
-    "dist:win": "npm run build && electron-builder --win nsis portable",
+    "dist:win": "npm run build && electron-builder --win nsis portable --publish never",
     "dist:web": "npm run build && node scripts/package-web.mjs",
     "check": "tsc --noEmit"
   },
