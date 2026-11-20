@@ -1,14 +1,16 @@
 {
-  "name": "rest-express",
+  "name": "ecotrack",
   "version": "1.0.0",
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "NODE_ENV=development tsx server/index.ts",
-    "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "start": "NODE_ENV=production node dist/index.js",
-    "check": "tsc",
-    "db:push": "drizzle-kit push"
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview",
+    "desktop": "electron electron/main.cjs",
+    "dist:win": "npm run build && electron-builder --win nsis portable",
+    "dist:web": "npm run build && node scripts/package-web.mjs",
+    "check": "tsc --noEmit"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -98,9 +100,35 @@
     "tailwindcss": "^3.4.17",
     "tsx": "^4.20.5",
     "typescript": "5.6.3",
-    "vite": "^5.4.20"
+    "vite": "^5.4.20",
+    "electron": "^34.3.3",
+    "electron-builder": "^26.0.12"
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
+  },
+  "build": {
+    "appId": "com.andreyoudachev.ecotrack",
+    "productName": "EcoTrack",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   }
 }
