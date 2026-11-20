@@ -1,51 +1,29 @@
-import { Switch, Route } from "wouter";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import Home from "@/pages/Home";
-import Dashboard from "@/pages/Dashboard";
-import TrackUsage from "@/pages/TrackUsage";
-import Leaderboard from "@/pages/Leaderboard";
-import Community from "@/pages/Community";
-import Login from "@/pages/Login";
-import Profile from "@/pages/Profile";
-import Privacy from "@/pages/Privacy";
-import NotFound from "@/pages/not-found";
-
-function Router() {
-  return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/track" component={TrackUsage} />
-      <Route path="/leaderboard" component={Leaderboard} />
-      <Route path="/community" component={Community} />
-      <Route path="/login" component={Login} />
-      <Route path="/profile" component={Profile} />
-      <Route path="/privacy" component={Privacy} />
-      <Route component={NotFound} />
-    </Switch>
-  );
-}
-
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <div className="min-h-screen flex flex-col">
-          <Header />
-          <main className="flex-1">
-            <Router />
-          </main>
-          <Footer />
-        </div>
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
-  );
-}
-
-export default App;
+import {useEffect,useMemo,useState} from "react";
+import {Leaf,LayoutDashboard,PlusCircle,CalendarDays,BookOpen,Settings,Download,Upload,Trash2,Zap,Droplets,Recycle,Car,Menu,X,ShieldCheck,BarChart3} from "lucide-react";
+type Entry={id:string;date:string;energy:number;water:number;waste:number;travel:number;note:string};
+type Data={name:string;entries:Entry[];notes:{id:string;text:string;date:string}[]};
+const KEY="ecotrack.local.v1",blank:Data={name:"",entries:[],notes:[]},today=()=>new Date().toISOString().slice(0,10);
+function load():Data{try{const d=JSON.parse(localStorage.getItem(KEY)||"null");return d?{name:d.name||"",entries:Array.isArray(d.entries)?d.entries:[],notes:Array.isArray(d.notes)?d.notes:[]}:blank}catch{return blank}}
+const card="rounded-2xl border border-emerald-900/10 bg-white p-5 shadow-sm",button="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800",outline="inline-flex items-center gap-2 rounded-xl border border-emerald-900/15 px-4 py-2.5 text-sm font-semibold text-emerald-900 hover:bg-emerald-50";
+export default function App(){
+const [data,setData]=useState<Data>(load),[page,setPage]=useState("dashboard"),[mobile,setMobile]=useState(false),[message,setMessage]=useState(""),[name,setName]=useState(data.name),[note,setNote]=useState("");
+const [form,setForm]=useState({date:today(),energy:"",water:"",waste:"",travel:"",note:""});
+useEffect(()=>{localStorage.setItem(KEY,JSON.stringify(data))},[data]);
+useEffect(()=>{if(message){const t=setTimeout(()=>setMessage(""),3000);return()=>clearTimeout(t)}},[message]);
+const nav=[["dashboard","Dashboard",LayoutDashboard],["track","Log usage",PlusCircle],["history","History",CalendarDays],["journal","Journal",BookOpen],["settings","Settings",Settings]] as const;
+const totals=useMemo(()=>data.entries.reduce((a,e)=>({energy:a.energy+e.energy,water:a.water+e.water,waste:a.waste+e.waste,travel:a.travel+e.travel}),{energy:0,water:0,waste:0,travel:0}),[data.entries]);
+const week=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);const day=d.toISOString().slice(0,10);return {label:d.toLocaleDateString(undefined,{weekday:"short"}),v:data.entries.filter(e=>e.date===day).reduce((s,e)=>s+e.energy,0)}});
+const max=Math.max(1,...week.map(x=>x.v));
+function add(e:React.FormEvent){e.preventDefault();const v=[form.energy,form.water,form.waste,form.travel].map(x=>x===""?0:Number(x));if(v.some(x=>!Number.isFinite(x)||x<0)||v.every(x=>x===0)){setMessage("Enter at least one valid non-negative measurement.");return}setData(d=>({...d,entries:[{id:crypto.randomUUID(),date:form.date,energy:v[0],water:v[1],waste:v[2],travel:v[3],note:form.note},...d.entries]}));setForm({date:today(),energy:"",water:"",waste:"",travel:"",note:""});setMessage("Entry saved on this device.");setPage("dashboard")}
+function backup(){const a=document.createElement("a"),u=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));a.href=u;a.download="ecotrack-backup.json";a.click();URL.revokeObjectURL(u)}
+function restore(e:React.ChangeEvent<HTMLInputElement>){const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(String(r.result));if(!Array.isArray(d.entries)||!Array.isArray(d.notes))throw Error();setData({name:String(d.name||""),entries:d.entries,notes:d.notes});setName(String(d.name||""));setMessage("Backup restored.")}catch{setMessage("Invalid EcoTrack backup file.")}};r.readAsText(f);e.target.value=""}
+const metric=(label:string,value:number,unit:string,Icon:any)=><div className={card}><div className="flex justify-between text-sm text-slate-500"><span>{label}</span><Icon size={19} className="text-emerald-700"/></div><p className="mt-3 text-3xl font-bold">{value.toLocaleString(undefined,{maximumFractionDigits:1})}<small className="ml-1 text-sm font-medium text-slate-500">{unit}</small></p><p className="mt-1 text-xs text-slate-400">Total recorded</p></div>;
+return <div className="min-h-screen bg-[#f5f8f3] text-slate-800"><header className="sticky top-0 z-10 border-b bg-white/95 backdrop-blur"><div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3"><button onClick={()=>setPage("dashboard")} className="flex items-center gap-2"><span className="rounded-xl bg-emerald-700 p-2 text-white"><Leaf/></span><span className="text-left"><b className="block text-lg">EcoTrack</b><small className="text-xs text-slate-500">Personal sustainability tracker</small></span></button><nav className="hidden gap-1 md:flex">{nav.map(([id,label,I]:any)=><button key={id} onClick={()=>setPage(id)} className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${page===id?"bg-emerald-50 text-emerald-800":"text-slate-600 hover:bg-slate-50"}`}><I size={16}/>{label}</button>)}</nav><button className="p-2 md:hidden" onClick={()=>setMobile(!mobile)}>{mobile?<X/>:<Menu/>}</button></div>{mobile&&<nav className="grid grid-cols-2 gap-2 p-3 md:hidden">{nav.map(([id,label,I]:any)=><button key={id} onClick={()=>{setPage(id);setMobile(false)}} className="flex gap-2 rounded-lg bg-slate-50 p-3 text-sm"><I size={16}/>{label}</button>)}</nav>}</header>
+<main className="mx-auto max-w-7xl px-4 py-8"><div className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-widest text-emerald-700">Your footprint, made visible</p><h1 className="mt-1 text-3xl font-bold">{page==="dashboard"?(data.name?`Welcome back, ${data.name}`:"Your dashboard"):nav.find(x=>x[0]===page)?.[1]}</h1><p className="mt-2 text-sm text-slate-500">Your records stay on this device. No account or cloud service required.</p></div><button className={button} onClick={()=>setPage("track")}><PlusCircle size={17}/> Log usage</button></div>
+{message&&<div role="status" className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">{message}</div>}
+{page==="dashboard"&&<><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{metric("Electricity",totals.energy,"kWh",Zap)}{metric("Water",totals.water,"L",Droplets)}{metric("Waste",totals.waste,"kg",Recycle)}{metric("Travel",totals.travel,"km",Car)}</div><div className="mt-5 grid gap-5 lg:grid-cols-[1.5fr_1fr]"><section className={card}><div className="mb-5 flex items-center justify-between"><div><h2 className="font-semibold">Electricity · last 7 days</h2><p className="text-xs text-slate-500">Daily kWh from saved entries</p></div><BarChart3 className="text-emerald-700"/></div><div className="flex h-48 items-end gap-3">{week.map((d,i)=><div key={i} className="flex h-full flex-1 flex-col items-center justify-end gap-2"><span className="text-[10px] text-slate-500">{d.v||""}</span><div className="w-full rounded-t-lg bg-emerald-600" style={{height:`${Math.max(3,d.v/max*72)}%`}}/><span className="text-xs text-slate-500">{d.label}</span></div>)}</div>{!data.entries.length&&<p className="mt-3 text-center text-sm text-slate-400">Log your first entry to see trends.</p>}</section><section className={card}><div className="flex items-center gap-2"><ShieldCheck className="text-emerald-700"/><h2 className="font-semibold">Private by design</h2></div><p className="mt-3 text-sm leading-6 text-slate-500">Measurements are stored locally. No login, analytics, cloud sync or shared leaderboard is used in this release.</p><p className="mt-4 text-xs text-slate-400">EcoTrack does not invent carbon savings or environmental scores. It displays the measurements you record.</p><button className={outline+" mt-5 w-full"} onClick={()=>setPage("history")}>Review entries</button></section></div><section className={card+" mt-5"}><h2 className="mb-3 font-semibold">Recent entries</h2>{data.entries.slice(0,5).length?data.entries.slice(0,5).map(e=><div key={e.id} className="flex flex-wrap justify-between gap-2 border-t py-3 text-sm"><b>{e.date}</b><span className="text-slate-500">{e.energy} kWh · {e.water} L · {e.waste} kg · {e.travel} km</span></div>):<p className="py-5 text-sm text-slate-500">No records yet. Log your first measurement to get started.</p>}</section></>}
+{page==="track"&&<section className={card+" max-w-3xl"}><h2 className="font-semibold">New usage entry</h2><p className="mb-5 mt-1 text-sm text-slate-500">Enter the measurements you have. Blank fields are stored as zero.</p><form onSubmit={add} className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-medium">Date<input required type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})} className="mt-2 w-full rounded-xl border p-3"/></label>{([["energy","Electricity","kWh"],["water","Water","litres"],["waste","Waste","kg"],["travel","Travel distance","km"]] as const).map(([k,l,u])=><label key={k} className="text-sm font-medium">{l} ({u})<input type="number" min="0" step="any" value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})} placeholder="0" className="mt-2 w-full rounded-xl border p-3"/></label>)}<label className="sm:col-span-2 text-sm font-medium">Note (optional)<textarea rows={3} value={form.note} onChange={e=>setForm({...form,note:e.target.value})} className="mt-2 w-full rounded-xl border p-3"/></label><button className={button+" w-fit"}>Save entry</button></form></section>}
+{page==="history"&&<section className={card}><div className="mb-4 flex flex-wrap justify-between gap-3"><div><h2 className="font-semibold">Usage history</h2><p className="text-sm text-slate-500">{data.entries.length} saved entries</p></div><button className={outline} onClick={backup}><Download size={16}/> Export backup</button></div>{data.entries.length?<div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="text-xs uppercase text-slate-400"><tr>{["Date","Energy","Water","Waste","Travel","Note",""].map(x=><th className="py-3" key={x}>{x}</th>)}</tr></thead><tbody>{[...data.entries].sort((a,b)=>b.date.localeCompare(a.date)).map(e=><tr key={e.id} className="border-t"><td className="py-3 font-medium">{e.date}</td><td>{e.energy} kWh</td><td>{e.water} L</td><td>{e.waste} kg</td><td>{e.travel} km</td><td className="max-w-40 truncate">{e.note}</td><td><button aria-label="Delete entry" onClick={()=>setData(d=>({...d,entries:d.entries.filter(x=>x.id!==e.id)}))} className="p-2 text-rose-600"><Trash2 size={16}/></button></td></tr>)}</tbody></table></div>:<p className="py-12 text-center text-sm text-slate-500">No usage has been logged yet.</p>}</section>}
+{page==="journal"&&<div className="grid gap-5 lg:grid-cols-2"><section className={card}><h2 className="font-semibold">Private sustainability journal</h2><p className="mb-4 mt-1 text-sm text-slate-500">Notes are saved only on this device.</p><form onSubmit={e=>{e.preventDefault();if(note.trim())setData(d=>({...d,notes:[{id:crypto.randomUUID(),date:new Date().toISOString(),text:note.trim()},...d.notes]}));setNote("");setMessage("Journal note saved.")}}><textarea required rows={4} value={note} onChange={e=>setNote(e.target.value)} placeholder="What sustainable change did you make?" className="w-full rounded-xl border p-3"/><button className={button+" mt-3"}>Save note</button></form></section><section className={card}><h2 className="mb-3 font-semibold">Your notes</h2>{data.notes.length?data.notes.map(n=><article key={n.id} className="border-t py-3"><p className="whitespace-pre-wrap text-sm">{n.text}</p><time className="mt-2 block text-xs text-slate-400">{new Date(n.date).toLocaleString()}</time></article>):<p className="text-sm text-slate-500">No notes yet.</p>}</section></div>}
+{page==="settings"&&<div className="grid max-w-3xl gap-5"><section className={card}><h2 className="font-semibold">Profile</h2><p className="mb-4 mt-1 text-sm text-slate-500">Name is stored locally and never sent to a server.</p><form className="flex flex-wrap gap-3" onSubmit={e=>{e.preventDefault();setData(d=>({...d,name:name.trim()}));setMessage("Profile saved.")}}><input maxLength={50} value={name} onChange={e=>setName(e.target.value)} placeholder="Your name" className="min-w-0 flex-1 rounded-xl border p-3"/><button className={button}>Save profile</button></form></section><section className={card}><h2 className="font-semibold">Backup and restore</h2><p className="mb-4 mt-1 text-sm text-slate-500">Export a JSON backup or restore one later.</p><div className="flex flex-wrap gap-3"><button className={outline} onClick={backup}><Download size={16}/> Export</button><label className={outline+" cursor-pointer"}><Upload size={16}/> Import<input type="file" accept=".json,application/json" className="hidden" onChange={restore}/></label></div></section><section className={card}><h2 className="font-semibold text-rose-700">Delete local data</h2><p className="my-2 text-sm text-slate-500">Erase your profile, usage entries and journal notes from this device.</p><button className="rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700" onClick={()=>{if(confirm("Permanently delete all EcoTrack data on this device?")){setData(blank);setName("");setMessage("Local data cleared.")}}}>Clear all data</button></section></div>}
+<footer className="mt-12 border-t py-6 text-xs text-slate-400">EcoTrack · Local-first sustainability tracking · Data remains on your device.</footer></main></div>}
